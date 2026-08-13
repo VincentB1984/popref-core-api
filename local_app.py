@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import socket
 import sys
 import threading
@@ -99,7 +100,7 @@ def list_communes(excel_path: Path) -> list[dict[str, str]]:
     for _, row in table.iterrows():
         code = norm_geo_code(row["Code géographique"])
         name = str(row["Nom"]).strip()
-        if len(code) != 5 or not code.isdigit() or not name or code in seen:
+        if not re.fullmatch(r"(?:\d{5}|2[AB]\d{3})", code) or not name or code in seen:
             continue
         seen.add(code)
         communes.append({"code": code, "name": name, "label": f"{name} ({code})"})
@@ -168,7 +169,7 @@ header{background:var(--navy);color:#fff;padding:1rem max(1.25rem,calc((100% - 9
 let sessionId=null;
 const $=id=>document.getElementById(id); const notice=(id,text,kind='')=>{const el=$(id);el.className='status '+kind;el.textContent=text};
 $('import').onclick=async()=>{const file=$('excel').files[0];if(!file){notice('import-status','Sélectionnez d’abord un fichier Excel.','error');return}const data=new FormData();data.append('excel',file);$('import').disabled=true;notice('import-status','Lecture du fichier et chargement des communes…');try{const res=await fetch('/api/import',{method:'POST',body:data});const body=await res.json();if(!res.ok)throw Error(body.detail||'Import impossible');sessionId=body.session_id;$('file-summary').textContent=`${body.original_name} — ${body.communes.length.toLocaleString('fr-FR')} communes disponibles.`;const list=$('communes');list.replaceChildren(...body.communes.map(c=>{const o=document.createElement('option');o.value=c.label;return o}));$('import-card').classList.add('hidden');$('configure-card').classList.remove('hidden')}catch(e){notice('import-status',e.message,'error')}finally{$('import').disabled=false}};
-$('generate').onclick=async()=>{if(!sessionId)return;let commune=$('commune').value.trim();const code=commune.match(/\\((\\d{5})\\)$/);if(code)commune=code[1];if(!commune){notice('generation-status','Choisissez une commune.','error');return}const cards=[...$('assets').files];if(cards.length){const form=new FormData();form.append('session_id',sessionId);cards.forEach(f=>form.append('assets',f));const upload=await fetch('/api/assets',{method:'POST',body:form});if(!upload.ok){const b=await upload.json();notice('generation-status',b.detail||'Impossible d’importer les cartes.','error');return}}$('generate').disabled=true;notice('generation-status','Génération du dossier en cours…');try{const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sessionId,commune,include_insee:$('insee').checked})});const body=await res.json();if(!res.ok)throw Error(body.detail||'Génération impossible');const timer=setInterval(async()=>{const poll=await fetch('/api/jobs/'+body.job_id);const j=await poll.json();if(j.status==='done'){clearInterval(timer);notice('generation-status','Dossier généré. Le téléchargement démarre.','success');window.location='/api/jobs/'+body.job_id+'/download';$('generate').disabled=false}else if(j.status==='error'){clearInterval(timer);notice('generation-status','Erreur : '+j.error,'error');$('generate').disabled=false}else notice('generation-status','Génération du dossier en cours…')},1200)}catch(e){notice('generation-status',e.message,'error');$('generate').disabled=false}};
+$('generate').onclick=async()=>{if(!sessionId)return;let commune=$('commune').value.trim();const code=commune.match(/\\(((?:\\d{5}|2[AB]\\d{3}))\\)$/);if(code)commune=code[1];if(!commune){notice('generation-status','Choisissez une commune.','error');return}const cards=[...$('assets').files];if(cards.length){const form=new FormData();form.append('session_id',sessionId);cards.forEach(f=>form.append('assets',f));const upload=await fetch('/api/assets',{method:'POST',body:form});if(!upload.ok){const b=await upload.json();notice('generation-status',b.detail||'Impossible d’importer les cartes.','error');return}}$('generate').disabled=true;notice('generation-status','Génération du dossier en cours…');try{const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sessionId,commune,include_insee:$('insee').checked})});const body=await res.json();if(!res.ok)throw Error(body.detail||'Génération impossible');const timer=setInterval(async()=>{const poll=await fetch('/api/jobs/'+body.job_id);const j=await poll.json();if(j.status==='done'){clearInterval(timer);notice('generation-status','Dossier généré. Le téléchargement démarre.','success');window.location='/api/jobs/'+body.job_id+'/download';$('generate').disabled=false}else if(j.status==='error'){clearInterval(timer);notice('generation-status','Erreur : '+j.error,'error');$('generate').disabled=false}else notice('generation-status','Génération du dossier en cours…')},1200)}catch(e){notice('generation-status',e.message,'error');$('generate').disabled=false}};
 </script></body></html>"""
 
 

@@ -22,8 +22,8 @@ class PoprefLocalApiTests(unittest.TestCase):
         with pd.ExcelWriter(self.excel_path, engine="openpyxl") as writer:
             pd.DataFrame(
                 {
-                    "Code géographique": ["01001", "01002"],
-                    "Nom": ["L'Abergement-Clémenciat", "L'Abergement-de-Varey"],
+                    "Code géographique": ["01001", "01002", "2A004"],
+                    "Nom": ["L'Abergement-Clémenciat", "L'Abergement-de-Varey", "Ajaccio"],
                 }
             ).to_excel(writer, sheet_name="COM", index=False)
 
@@ -38,8 +38,9 @@ class PoprefLocalApiTests(unittest.TestCase):
             )
         self.assertEqual(response.status_code, 200, response.text)
         body = response.json()
-        self.assertEqual(len(body["communes"]), 2)
-        self.assertEqual(body["communes"][0]["code"], "01001")
+        self.assertEqual(len(body["communes"]), 3)
+        self.assertIn({"code": "01001", "name": "L'Abergement-Clémenciat", "label": "L'Abergement-Clémenciat (01001)"}, body["communes"])
+        self.assertIn({"code": "2A004", "name": "Ajaccio", "label": "Ajaccio (2A004)"}, body["communes"])
         return body
 
     def test_import_and_asset_upload(self) -> None:
